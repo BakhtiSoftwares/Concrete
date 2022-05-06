@@ -6,7 +6,7 @@ Public Class BrickEightNodes
     Public Ident As Integer
     Public ListNoeud As List(Of Node)
     Public Material As New PDM
-    Public DEE(6, 6), FUN(8), DER(3, 8), DERIV(3, 8), JAC(3, 3), JAC1(3, 3), Ke(24, 24), Fe(24) As Double
+    Public DEE(6, 6), FUN(8), FUNQuad(4), DER(3, 8), DerQuad(2, 4), DERIV(3, 8), DerQuadIV(2, 4), JAC(3, 3), JAC1(3, 3), JACQuad(2, 2), JACQuad1(2, 2), Ke(24, 24), Fe(24) As Double
     Public BEE(6, 24), BT(24, 6), Eload(24), Bload(24), DBEE(6, 24), BTDB(24, 24) As Double
     Public SigmaX(), DamageParameter(), SigmaY(), SigmaZ(), TouXY(), TouYZ(), TouZX() As Double
 
@@ -272,6 +272,63 @@ Public Class BrickEightNodes
             Next
         Next
     End Sub
+
+
+    Public Function LoadVector(Ngp As Integer, Rhoo As Double, Samp(,) As Double) As Double()
+        Dim LoadVecteur(4) As Double
+        Dim NTRhou(4), SIGMA(6), x, Det, QUOT As Double
+
+
+        For I = 1 To Ngp
+            For J = 1 To Ngp
+                Call FmQuad(I, J, Samp)
+                'jacobien matrix
+                For ii = 1 To 2
+                    For ji = 1 To 2
+                        x = 0
+                        For f = 1 To 4
+                            x += DerQuad(ii, f) * ListNoeud(f + 3).Coord(ji)
+                        Next
+                        JACQuad(ii, ji) = x
+                    Next
+                Next
+                'Déterminant de la matrice jacobéenne
+                Det = JACQuad(1, 1) * JACQuad(2, 2) - JACQuad(1, 2) * JACQuad(2, 1)
+                'matrice inverse de la matrice jacobéenne
+                JACQuad1(1, 1) = JACQuad(2, 2)
+                JACQuad1(1, 2) = -JACQuad(1, 2)
+                JACQuad1(2, 1) = -JACQuad(2, 1)
+                JACQuad1(2, 2) = JACQuad(1, 1)
+
+                For f = 1 To 2
+                    For l = 1 To 2
+                        JACQuad1(f, l) = JACQuad1(f, l) / Det
+                    Next
+                Next
+
+                For ii = 1 To 2
+                    For ji = 1 To 4
+                        x = 0
+                        For f = 1 To 2
+                            x += JACQuad1(ii, f) * DerQuad(f, ji)
+                        Next
+                        DerQuadIV(ii, ji) = x
+                    Next
+                Next
+
+                QUOT = Det * Samp(I, 2) * Samp(J, 2)
+
+                For ii = 1 To 4
+                    NTRhou(ii) = FUNQuad(ii) * Rhoo * QUOT
+                Next ii
+
+                For ic = 1 To 4
+                    LoadVecteur(ic) = LoadVecteur(ic) + NTRhou(ic)
+                Next
+            Next
+        Next
+        Return LoadVecteur
+    End Function
 
     Public Sub ResoudreNonLinaireStressInitialStrain(Approch As Integer, Ngp As Integer, ELD() As Double, Optional LoiComportement As Integer = 0, Optional Convergance As Boolean = Nothing,
                        Optional Iter As Integer = 0, Optional MaxIter As Integer = 0, Optional Samp(,) As Double = Nothing, Optional DT As Double = 0)
@@ -1061,44 +1118,69 @@ Public Class BrickEightNodes
         xip = xi + 1
         Zetap = Zeta + 1
 
-
-
-
-        FUN(1) = 0.125 * etam * xim * Zetam  '1
-        FUN(5) = 0.125 * etam * xim * Zetap  '2
-        FUN(8) = 0.125 * etam * xip * Zetap  '3
-        FUN(4) = 0.125 * etam * xip * Zetam  '4
-        FUN(2) = 0.125 * etap * xim * Zetam  '5
-        FUN(6) = 0.125 * etap * xim * Zetap  '6
-        FUN(7) = 0.125 * etap * xip * Zetap  '7
-        FUN(3) = 0.125 * etap * xip * Zetam  '8
+        FUN(1) = 0.125 * etam * xim * Zetam
+        FUN(2) = 0.125 * etam * xip * Zetam
+        FUN(3) = 0.125 * etap * xip * Zetam
+        FUN(4) = 0.125 * etap * xim * Zetam
+        FUN(5) = 0.125 * etam * xim * Zetap
+        FUN(6) = 0.125 * etam * xip * Zetap
+        FUN(7) = 0.125 * etap * xip * Zetap
+        FUN(8) = 0.125 * etap * xim * Zetap
 
         DER(1, 1) = -0.125 * etam * Zetam
-        DER(1, 5) = -0.125 * etam * Zetap
-        DER(1, 8) = 0.125 * etam * Zetap
-        DER(1, 4) = 0.125 * etam * Zetam
-        DER(1, 2) = -0.125 * etap * Zetam
-        DER(1, 6) = -0.125 * etap * Zetap
-        DER(1, 7) = 0.125 * etap * Zetap
+        DER(1, 4) = -0.125 * etap * Zetam
         DER(1, 3) = 0.125 * etap * Zetam
+        DER(1, 2) = 0.125 * etam * Zetam
+        DER(1, 5) = -0.125 * etam * Zetap
+        DER(1, 8) = -0.125 * etap * Zetap
+        DER(1, 7) = 0.125 * etap * Zetap
+        DER(1, 6) = 0.125 * etam * Zetap
 
         DER(2, 1) = -0.125 * xim * Zetam
-        DER(2, 5) = -0.125 * xim * Zetap
-        DER(2, 8) = -0.125 * xip * Zetap
-        DER(2, 4) = -0.125 * xip * Zetam
-        DER(2, 2) = 0.125 * xim * Zetam
-        DER(2, 6) = 0.125 * xim * Zetap
-        DER(2, 7) = 0.125 * xip * Zetap
+        DER(2, 4) = 0.125 * xim * Zetam
         DER(2, 3) = 0.125 * xip * Zetam
+        DER(2, 2) = -0.125 * xip * Zetam
+        DER(2, 5) = -0.125 * xim * Zetap
+        DER(2, 8) = 0.125 * xim * Zetap
+        DER(2, 7) = 0.125 * xip * Zetap
+        DER(2, 6) = -0.125 * xip * Zetap
 
         DER(3, 1) = -0.125 * xim * etam
-        DER(3, 5) = 0.125 * xim * etam
-        DER(3, 8) = 0.125 * xip * etam
-        DER(3, 4) = -0.125 * xip * etam
-        DER(3, 2) = -0.125 * xim * etap
-        DER(3, 6) = 0.125 * xim * etap
-        DER(3, 7) = 0.125 * xip * etap
+        DER(3, 4) = -0.125 * xim * etap
         DER(3, 3) = -0.125 * xip * etap
+        DER(3, 2) = -0.125 * xip * etam
+        DER(3, 5) = 0.125 * xim * etam
+        DER(3, 8) = 0.125 * xim * etap
+        DER(3, 7) = 0.125 * xip * etap
+        DER(3, 6) = 0.125 * xip * etam
+
+    End Sub
+
+    Private Sub FmQuad(i As Integer, j As Integer, Samp(,) As Double)
+
+        Dim eta, xi, etam, etap, xim, xip As Double
+
+        eta = Samp(i, 1)
+        xi = Samp(j, 1)
+
+        etam = 0.25 * (1 - eta)
+        xim = 0.25 * (1 - xi)
+        etap = 0.25 * (eta + 1)
+        xip = 0.25 * (xi + 1)
+
+        FUNQuad(1) = 4 * xim * etam
+        FUNQuad(4) = 4 * xim * etap
+        FUNQuad(3) = 4 * xip * etap
+        FUNQuad(2) = 4 * xip * etam
+
+        DerQuad(1, 1) = -etam
+        DerQuad(1, 4) = -etap
+        DerQuad(1, 3) = etap
+        DerQuad(1, 2) = etam
+        DerQuad(2, 1) = -xim
+        DerQuad(2, 4) = xim
+        DerQuad(2, 3) = xip
+        DerQuad(2, 2) = -xip
 
     End Sub
     Private Sub FormD3(v As Double, E As Double)

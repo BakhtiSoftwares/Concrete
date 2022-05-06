@@ -124,10 +124,9 @@ Module Engine
         GL.Clear(ClearBufferMask.ColorBufferBit)
         GL.MatrixMode(MatrixMode.Projection)
         GL.LoadIdentity()
-
         GL.PolygonMode(MaterialFace.FrontAndBack, PolygonMode.Line)
         GL.Clear(ClearBufferMask.ColorBufferBit)
-        GL.ClearColor(Color.Black)
+        GL.ClearColor(Color.White)
         GL.MatrixMode(MatrixMode.Projection)
         GL.LoadIdentity()
         MyGlControl.SwapBuffers()
@@ -137,15 +136,24 @@ Module Engine
         w = MyGlControl.Width
         h = MyGlControl.Height
         Dim Rapport As Double = w / h
-        GL.ClearColor(Color.Black)
+        GL.ClearColor(Color.White)
         GL.Clear(ClearBufferMask.ColorBufferBit)
         GL.LoadIdentity()
         GL.MatrixMode(MatrixMode.Projection)
-        ' GL.Ortho(-0.1 * Rapport, 0.1 * Rapport, -0.1, 0.1, -1, 1)
-        GL.Ortho(-1, 1, -1, 1, -1, 1)
+        Dim Xmin, Xmax, Ymax, Ymin, XminTemp, Xmi1, Echelle, XmaxTemp, YminTemp, YmaxTemp As Double
+        Xmin = -0.2
+        Ymin = -0.2
+        Xmax = 1.2
+        Ymax = 1.2
+        Echelle = h / 1.4
+        Xmi1 = System.Math.Abs(Xmin + w / Echelle - Xmax) / 2
+        XminTemp = Xmin - Xmi1
+        XmaxTemp = Xmin - Xmi1 + w / Echelle
+        YminTemp = Ymin
+        YmaxTemp = Ymin + h / Echelle
+        GL.Ortho(XminTemp, XmaxTemp, YminTemp, YmaxTemp, -1, 1)
         GL.Viewport(0, 0, w, h)
-        OurProblem.Draw2D(Color.Red)
-
+        OurProblem.Draw2D(Color.Black)
     End Sub
     Public Sub ReDraw3D(MyGlControl As GLControl)
         Dim w, h As Integer
@@ -161,8 +169,7 @@ Module Engine
         GL.LoadIdentity()
         GL.LoadMatrix(LoackAt)
         GL.Viewport(0, 0, w, h)
-
-        GL.ClearColor(Color.Black)
+        GL.ClearColor(Color.White)
         GL.Clear(ClearBufferMask.ColorBufferBit)
         OurProblem.Draw3D(True, Color.Red)
         OurProblem.Draw3D(False, Color.SkyBlue, EchelleAffichage)
@@ -180,6 +187,7 @@ Module Engine
         End If
         MyGlControl.SwapBuffers()
     End Sub
+
     Private Function ListOfPng(Path As String) As List(Of Bitmap)
         On Error GoTo 100
         Dim dir1 As New DirectoryInfo(Path)

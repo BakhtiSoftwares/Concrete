@@ -38,11 +38,12 @@ Public Class GlobalStructure
     Public Noeuds As New List(Of Node)
     Public Elements As New List(Of BrickEightNodes)
     Public MaillgeParametre As Double
+    Public TypeElement As String
     Dim samp(4, 2), KGlob(,) As Double
     Public IndexNoued As New List(Of Integer)
     Public Deplacement(), Forces() As Double
-
-    Dim MaxLong, Diametre, Haut, SurfaceTotal, Longeur, RhouBeton As Double
+    Public CompressiveCase As Boolean
+    Dim MaxLong, Diametre, Haut, SurfaceTotal, Longeur As Double
     Dim Nq, NbrNoeudEtage As Integer
     Public Force As ConcreteForce
     Public PropretyBeton As Comportement
@@ -51,9 +52,10 @@ Public Class GlobalStructure
     Const Ngp = 2 'Nombre de points de gausse
 
 
-    Public Sub GenerateMesh(TypeElement As String, E As Double, V As Double, Fb0_Fc0 As Double, Kc As Double, PsiDegre As Double,
+    Public Sub GenerateMesh(_TypeElement As String, E As Double, V As Double, Fb0_Fc0 As Double, Kc As Double, PsiDegre As Double,
             Fck As Double, Excent As Double, Rhou As Double, Comprission As List(Of DoublePoint), Tension As List(Of DoublePoint),
                             Optional _Diametre As Double = 0, Optional _Haut As Double = 0, Optional Lon As Double = 0)
+        TypeElement = _TypeElement
         Select Case TypeElement
             Case "Cylindre"
                 Diametre = _Diametre
@@ -74,17 +76,6 @@ Public Class GlobalStructure
         For i As Integer = 0 To lh
             Call Condlim(i)
         Next
-        '    For i = 0 To 1
-        '   Call condlim(24 + 24 * i)
-        '  Call condlim(25 + 24 * i)
-        ' Call condlim(28 + 24 * i)
-        'Call condlim(30 + 24 * i)
-        'Call condlim(36 + 24 * i)
-        'Call condlim(42 + 24 * i)
-        'Next
-
-
-
 
     End Sub
     Private Sub Condlim(ligne As Integer)
@@ -104,8 +95,6 @@ Public Class GlobalStructure
         Select Case Type
             Case 0
                 ResoudreProblemeLineaire()
-            Case 1
-                ResoudreProblemeNonLineaireInitialStrain()
             Case 2
                 ResoudreProblemeNonLineaireInitialStress()
         End Select
@@ -190,7 +179,7 @@ Public Class GlobalStructure
 
         Call TrouverDeplacements()
         Call TrouverContraintes(Force.Valeur)
-
+        MsgBox("The calculation is finished")
     End Sub
 
     Public Sub ResoudreProblemeNonLineaireInitialStrain()
@@ -329,8 +318,13 @@ Public Class GlobalStructure
         Dim LoiComportement As Integer = 0
         If LoiComportement = 1 Then PropretyBeton.E = 450
 
+        If TypeElement = "Cylindre" Then
+            Dim Res As MsgBoxResult = MsgBox("Non-conforming mesh, unable to model the element with PDM. Do you want to continue ?", vbAbort, "Concrete v2.0.0")
+            If Res <> MsgBoxResult.Yes Then Exit Sub
 
-        Dim i As Integer
+        End If
+
+            Dim i As Integer
         Nq = 3 * Noeuds.Count - 1
         ' les conditions limites
         Dim MaxIteration As Integer = 100
@@ -365,16 +359,13 @@ Public Class GlobalStructure
             '  ElE.Material.PhiDegre = 30
             ElE.Material.E0 = PropretyBeton.E
             ElE.Material.PsiDegre = PropretyBeton.PsiDegre
-
         Next
         ChargeTotale = 0
-        MsgBox("fcm = " & (Elements.Item(0).Material.Fck + 8).ToString & " MPa")
+        MsgBox("The sample will be modeled according to fcm = " & (Elements.Item(0).Material.Fck + 8).ToString & " MPa")
         'Compression
         Dim Iter As Integer
         Dim Converg As Boolean
         KGlobalInverse = CalculeRigiditeInverse()
-        Dim CompressiveCase As Boolean = True
-
         Dim Increments As New List(Of Single)
         If CompressiveCase Then
             Increments.Add(-5)
@@ -388,7 +379,6 @@ Public Class GlobalStructure
             Increments.Add(0.8 * Ftm)
             Increments.Add(0.1 * Ftm)
             Increments.Add(0.1 * Ftm)
-
 
             '  Increments.Add(0.05 * Ftm)
             For i = 1 To 100
@@ -459,6 +449,7 @@ Public Class GlobalStructure
         For i = 0 To Nq
             Deplacement(i) = DeplacementTotal(i)
         Next
+        MsgBox("The calculation is finished")
     End Sub
 
     Private Function ColoserNodeZposition(Optional ByRef IndexElement As Integer = -1) As Integer
@@ -2430,6 +2421,7 @@ Public Class GlobalStructure
         If FrontElement Then
             If F.ChargeRepartie Then
                 Dim Rhou As Double = Valeur
+
                 Dim S1 As Double = SurfaceTriangle(Elements.Item(el).ListNoeud(7).Coord(1), Elements.Item(el).ListNoeud(7).Coord(2),
                                                Elements.Item(el).ListNoeud(6).Coord(1), Elements.Item(el).ListNoeud(6).Coord(2),
                                                Elements.Item(el).ListNoeud(5).Coord(1), Elements.Item(el).ListNoeud(5).Coord(2))
@@ -2439,11 +2431,16 @@ Public Class GlobalStructure
                 Dim S As Double = S1 + S2
                 Dim ForceNodal As Double = Rhou * S / 4
 
+                '   MsgBox("4--> 1:" & Elements.Item(el).ListNoeud(4).Coord(1) & "   2:" & Elements.Item(el).ListNoeud(4).Coord(2) & vbNewLine &
+                '         "5--> 1:" & Elements.Item(el).ListNoeud(5).Coord(1) & "   2:" & Elements.Item(el).ListNoeud(5).Coord(2) & vbNewLine &
+                '        "6--> 1:" & Elements.Item(el).ListNoeud(6).Coord(1) & "   2:" & Elements.Item(el).ListNoeud(6).Coord(2) & vbNewLine &
+                '       "7--> 1:" & Elements.Item(el).ListNoeud(7).Coord(1) & "   2:" & Elements.Item(el).ListNoeud(7).Coord(2))
 
-                Fe(15) = ForceNodal
-                Fe(18) = ForceNodal
-                Fe(21) = ForceNodal
-                Fe(24) = ForceNodal
+                Dim ForceNod() As Double = Elements.Item(el).LoadVector(2, Rhou, samp)
+                Fe(15) = ForceNod(1) ' ForceNodal
+                Fe(18) = ForceNod(2) 'ForceNodal
+                Fe(21) = ForceNod(3) ' ForceNodal
+                Fe(24) = ForceNod(4) 'ForceNodal
 
             End If
         Else
@@ -2562,96 +2559,106 @@ Public Class GlobalStructure
 
     Private Sub GenerateMeshCylindre(Diametre As Double, Haut As Double, E As Double, V As Double, Fb0_Fc0 As Double, Kc As Double, PsiDegre As Double,
             Fck As Double, Excent As Double, Rhou As Double, Comprission As List(Of DoublePoint), Tension As List(Of DoublePoint))
-        Dim Counteur As List(Of DoublePoint) = CalculerPiremetreCylindre(Diametre)
-        Dim OurMesh As Mesh = MeshGenerator(Counteur)
-        QuadMesh = QMesh(New QuadMesh(OurMesh))
+        Try
+            Dim Counteur As List(Of DoublePoint) = CalculerPiremetreCylindre(Diametre)
+            Dim OurMesh As Mesh = MeshGenerator(Counteur)
+            QuadMesh = QMesh(New QuadMesh(OurMesh))
 
 
-        'Supprimer double QUAD
-        Dim Termine As Boolean = False
-        Do Until Termine
-            Dim Count As Integer = 0
-            Dim ExistQuad As Boolean = False
-            For i = 0 To QuadMesh.Count - 1
-                For j = i + 1 To QuadMesh.Count - 1
-                    If SameQuad(QuadMesh.Item(i), QuadMesh.Item(j)) Then
-                        ExistQuad = True
-                        Count = i
-                        Exit For
-                    End If
+            'Supprimer double QUAD
+            Dim Termine As Boolean = False
+            Do Until Termine
+                Dim Count As Integer = 0
+                Dim ExistQuad As Boolean = False
+                For i = 0 To QuadMesh.Count - 1
+                    For j = i + 1 To QuadMesh.Count - 1
+                        If SameQuad(QuadMesh.Item(i), QuadMesh.Item(j)) Then
+                            ExistQuad = True
+                            Count = i
+                            Exit For
+                        End If
 
+                    Next
+                    If ExistQuad Then Exit For
                 Next
-                If ExistQuad Then Exit For
-            Next
-            If ExistQuad Then
-                QuadMesh.Remove(QuadMesh.Item(Count))
-            Else
-                Termine = True
-            End If
-        Loop
-        Noeuds.Clear()
-        Dim NumbrElemet As Integer = Haut / MaxLong
-        Dim Cont As Integer = -1
-        Dim LongReal As Double = Haut / NumbrElemet
-        NbrNoeudEtage = ListOfVertex.Count
-        Dim Dis As Double = 999999999
-        Dim Dis1 As Double
-        For i = 0 To ListOfVertex.Count - 1
-            Dis1 = Sqrt(ListOfVertex.Item(i).x ^ 2 + ListOfVertex.Item(i).y ^ 2)
-            If Dis1 < Dis Then
-                NoeudProcheCentre.x = ListOfVertex.Item(i).x
-                NoeudProcheCentre.y = ListOfVertex.Item(i).y
-            End If
-        Next
-
-
-        Dim Z As Double
-        Do Until Z > Haut
+                If ExistQuad Then
+                    QuadMesh.Remove(QuadMesh.Item(Count))
+                Else
+                    Termine = True
+                End If
+            Loop
+            Noeuds.Clear()
+            Dim NumbrElemet As Integer = Haut / MaxLong
+            Dim Cont As Integer = -1
+            Dim LongReal As Double = Haut / NumbrElemet
+            NbrNoeudEtage = ListOfVertex.Count
+            Dim Dis As Double = 999999999
+            Dim Dis1 As Double
             For i = 0 To ListOfVertex.Count - 1
-                Cont = Cont + 1
-                Dim NewNoeud As New Node
-                NewNoeud.Ident = Cont
-                NewNoeud.Coord(1) = ListOfVertex.Item(i).x
-                NewNoeud.Coord(2) = ListOfVertex.Item(i).y
-                NewNoeud.Coord(3) = Z
-                Noeuds.Add(NewNoeud)
+                Dis1 = Sqrt(ListOfVertex.Item(i).x ^ 2 + ListOfVertex.Item(i).y ^ 2)
+                If Dis1 < Dis Then
+                    NoeudProcheCentre.x = ListOfVertex.Item(i).x
+                    NoeudProcheCentre.y = ListOfVertex.Item(i).y
+                End If
             Next
 
-            Z = Z + LongReal
-            If Abs(Z - Haut) < 0.0001 Then Z = Haut
-        Loop
-        Z = LongReal
-        Elements.Clear()
-        Cont = -1
-        Dim Etage, NumberNoued As Integer
-        Do Until Z > Haut
-            For i = 0 To QuadMesh.Count - 1
-                Cont = Cont + 1
-                Dim ListNoeud As New List(Of Node)
-                NumberNoued = QuadMesh.Item(i).S1 + Etage * ListOfVertex.Count
-                ListNoeud.Add(Noeuds.Item(NumberNoued))
-                NumberNoued = QuadMesh.Item(i).S2 + Etage * ListOfVertex.Count
-                ListNoeud.Add(Noeuds.Item(NumberNoued))
-                NumberNoued = QuadMesh.Item(i).S3 + Etage * ListOfVertex.Count
-                ListNoeud.Add(Noeuds.Item(NumberNoued))
-                NumberNoued = QuadMesh.Item(i).S4 + Etage * ListOfVertex.Count
-                ListNoeud.Add(Noeuds.Item(NumberNoued))
-                NumberNoued = QuadMesh.Item(i).S1 + (Etage + 1) * ListOfVertex.Count
-                ListNoeud.Add(Noeuds.Item(NumberNoued))
-                NumberNoued = QuadMesh.Item(i).S2 + (Etage + 1) * ListOfVertex.Count
-                ListNoeud.Add(Noeuds.Item(NumberNoued))
-                NumberNoued = QuadMesh.Item(i).S3 + (Etage + 1) * ListOfVertex.Count
-                ListNoeud.Add(Noeuds.Item(NumberNoued))
-                NumberNoued = QuadMesh.Item(i).S4 + (Etage + 1) * ListOfVertex.Count
-                ListNoeud.Add(Noeuds.Item(NumberNoued))
 
-                Elements.Add(New BrickEightNodes(Cont, E, V, Fb0_Fc0, Kc, PsiDegre, Fck, Excent, Rhou, Comprission, Tension, ListNoeud))
-            Next
-            Z = Z + LongReal
-            If Abs(Z - Haut) < 0.0001 Then Z = Haut
-            Etage = Etage + 1
-        Loop
+            Dim Z As Double
+            Do Until Z > Haut
+                For i = 0 To ListOfVertex.Count - 1
+                    Cont = Cont + 1
+                    Dim NewNoeud As New Node
+                    NewNoeud.Ident = Cont
+                    NewNoeud.Coord(1) = ListOfVertex.Item(i).x
+                    NewNoeud.Coord(2) = ListOfVertex.Item(i).y
+                    NewNoeud.Coord(3) = Z
+                    Noeuds.Add(NewNoeud)
+                Next
 
+                Z = Z + LongReal
+                If Abs(Z - Haut) < 0.0001 Then Z = Haut
+            Loop
+            Z = LongReal
+            Elements.Clear()
+            Cont = -1
+            Dim Etage, NumberNoued As Integer
+            Do Until Z > Haut
+                For i = 0 To QuadMesh.Count - 1
+                    Cont = Cont + 1
+                    Dim ListNoeud As New List(Of Node)
+                    NumberNoued = QuadMesh.Item(i).S1 + Etage * ListOfVertex.Count
+                    ListNoeud.Add(Noeuds.Item(NumberNoued))
+
+                    NumberNoued = QuadMesh.Item(i).S2 + Etage * ListOfVertex.Count
+                    ListNoeud.Add(Noeuds.Item(NumberNoued))
+
+                    NumberNoued = QuadMesh.Item(i).S3 + Etage * ListOfVertex.Count
+                    ListNoeud.Add(Noeuds.Item(NumberNoued))
+
+                    NumberNoued = QuadMesh.Item(i).S4 + Etage * ListOfVertex.Count
+                    ListNoeud.Add(Noeuds.Item(NumberNoued))
+
+                    NumberNoued = QuadMesh.Item(i).S1 + (Etage + 1) * ListOfVertex.Count
+                    ListNoeud.Add(Noeuds.Item(NumberNoued))
+
+                    NumberNoued = QuadMesh.Item(i).S2 + (Etage + 1) * ListOfVertex.Count
+                    ListNoeud.Add(Noeuds.Item(NumberNoued))
+
+                    NumberNoued = QuadMesh.Item(i).S3 + (Etage + 1) * ListOfVertex.Count
+                    ListNoeud.Add(Noeuds.Item(NumberNoued))
+
+                    NumberNoued = QuadMesh.Item(i).S4 + (Etage + 1) * ListOfVertex.Count
+                    ListNoeud.Add(Noeuds.Item(NumberNoued))
+
+                    Elements.Add(New BrickEightNodes(Cont, E, V, Fb0_Fc0, Kc, PsiDegre, Fck, Excent, Rhou, Comprission, Tension, ListNoeud))
+                Next
+                Z = Z + LongReal
+                If Abs(Z - Haut) < 0.0001 Then Z = Haut
+                Etage = Etage + 1
+            Loop
+        Catch
+            MsgBox("Mesh Error")
+        End Try
     End Sub
     Private Function CalculerPiremetreCylindre(Diametre As Double) As List(Of DoublePoint)
         Dim R As Double = Diametre / 2
@@ -2661,8 +2668,8 @@ Public Class GlobalStructure
         Do Until angle >= 360
             Dim NewPoint As DoublePoint
             radian = angle * PI / 180
-            NewPoint.x = R * Cos(radian)
-            NewPoint.y = R * Sin(radian)
+            NewPoint.x = R * Cos(radian) + R
+            NewPoint.y = R * Sin(radian) + R
             Resulat.Add(NewPoint)
             angle = angle + MaillgeParametre
         Loop
@@ -2683,12 +2690,10 @@ Public Class GlobalStructure
         End If
     End Sub
     Private Function CalculatePointsCube(YLar As Double, XLon As Double, ByRef LineNumber As Integer) As List(Of DoublePoint)
-
         Dim DisY As Double = YLar * MaillgeParametre / 100
         Lmin = DisY
         DisY = YLar / DisY
         DisY = YLar / (Int(DisY))
-
         Dim DisX As Double = XLon / DisY
         DisX = XLon / (Int(DisX))
         '     DisY = 0.25
@@ -2943,7 +2948,9 @@ Public Class GlobalStructure
 
         GL.PushMatrix()
         GL.Color3(PrintColor)
-
+        GL.Disable(EnableCap.Light0)
+        GL.Disable(EnableCap.LineSmooth)
+        GL.LineWidth(1)
         For Each Quad In QuadMesh
             GL.Begin(PrimitiveType.LineLoop)
             GL.Vertex2(ListOfVertex.Item(Quad.S1).x, ListOfVertex.Item(Quad.S1).y)
@@ -3015,6 +3022,8 @@ Public Class GlobalStructure
                                       Noued6 As Node, Noued7 As Node, Noued8 As Node, Echelle As Integer)
         Dim DepX, DepY, DepZ As Double
 
+
+
         GL.Begin(PrimitiveType.Polygon)
         DeplacementNoeud(Noued1.Ident, Echelle, DepX, DepY, DepZ)
         GL.Vertex3(Noued1.Coord(1) + DepX, Noued1.Coord(2) + DepY, Noued1.Coord(3) + DepZ)
@@ -3065,12 +3074,13 @@ Public Class GlobalStructure
         GL.Enable(EnableCap.Light0)
         GL.Enable(EnableCap.LineSmooth)
         If InitialShape Then
-
+        
             GL.PushMatrix()
 
             For Each Elem In Elements
 
                 GL.PolygonMode(MaterialFace.FrontAndBack, PolygonMode.Line)
+
                 GL.Color3(Color.BlueViolet)
                 DessignerCube(Elem.ListNoeud.Item(0), Elem.ListNoeud.Item(1), Elem.ListNoeud.Item(2), Elem.ListNoeud.Item(3),
               Elem.ListNoeud.Item(4), Elem.ListNoeud.Item(5), Elem.ListNoeud.Item(6), Elem.ListNoeud.Item(7))
@@ -3091,17 +3101,18 @@ Public Class GlobalStructure
             For Each Elem In Elements
 
                 GL.LineWidth(1)
+                GL.PolygonMode(MaterialFace.FrontAndBack, PolygonMode.Line)
+
+                GL.Color3(Color.DarkBlue)
+                DessignerCubeDeplacer(Elem.ListNoeud.Item(0), Elem.ListNoeud.Item(1), Elem.ListNoeud.Item(2), Elem.ListNoeud.Item(3),
+                              Elem.ListNoeud.Item(4), Elem.ListNoeud.Item(5), Elem.ListNoeud.Item(6), Elem.ListNoeud.Item(7), Echelle)
+                GL.LineWidth(2)
                 GL.PolygonMode(MaterialFace.FrontAndBack, PolygonMode.Fill)
                 GL.Color3(PrintColor)
                 DessignerCubeDeplacer(Elem.ListNoeud.Item(0), Elem.ListNoeud.Item(1), Elem.ListNoeud.Item(2), Elem.ListNoeud.Item(3),
-                              Elem.ListNoeud.Item(4), Elem.ListNoeud.Item(5), Elem.ListNoeud.Item(6), Elem.ListNoeud.Item(7), Echelle)
-
-                GL.LineWidth(2)
-                GL.PolygonMode(MaterialFace.FrontAndBack, PolygonMode.Line)
-                GL.Color3(Color.DarkBlue)
-                DessignerCubeDeplacer(Elem.ListNoeud.Item(0), Elem.ListNoeud.Item(1), Elem.ListNoeud.Item(2), Elem.ListNoeud.Item(3),
                              Elem.ListNoeud.Item(4), Elem.ListNoeud.Item(5), Elem.ListNoeud.Item(6), Elem.ListNoeud.Item(7), Echelle)
 
+                GL.LineWidth(1)
             Next
             GL.PopMatrix()
         End If
@@ -3131,6 +3142,7 @@ Public Class GlobalStructure
             Fck As Double, Excent As Double, Rhou As Double, Comprission As List(Of DoublePoint), Tension As List(Of DoublePoint))
         Dim LineNumber As Integer = 0
 
+
         ListOfVertex.Clear()
         ListOfVertex = CalculatePointsCube(Ylar, XLon, LineNumber)
 
@@ -3145,8 +3157,8 @@ Public Class GlobalStructure
 
         Do
             For i = 0 To LineNumber - 2
-                QuadMesh.Add(New Quadralateral With {.S1 = i + (Cont - 1) * LineNumber, .S2 = i + Cont * LineNumber,
-                             .S3 = i + Cont * LineNumber + 1, .S4 = i + (Cont - 1) * LineNumber + 1})
+                QuadMesh.Add(New Quadralateral With {.S1 = i + (Cont - 1) * LineNumber, .S2 = i + (Cont - 1) * LineNumber + 1,
+                             .S3 = i + Cont * LineNumber + 1, .S4 = i + Cont * LineNumber})
             Next
             Cont = Cont + 1
             If DisCour >= Dtot Then Exit Do
@@ -3155,14 +3167,12 @@ Public Class GlobalStructure
             DisCour = DisCour + DisY
             If DisCour >= Dtot Then
                 For i = 0 To LineNumber - 2
-                    QuadMesh.Add(New Quadralateral With {.S1 = i + (Cont - 1) * LineNumber, .S2 = i + Cont * LineNumber,
-                             .S3 = i + Cont * LineNumber + 1, .S4 = i + (Cont - 1) * LineNumber + 1})
+                    QuadMesh.Add(New Quadralateral With {.S1 = i + (Cont - 1) * LineNumber, .S2 = i + (Cont - 1) * LineNumber + 1,
+                             .S3 = i + Cont * LineNumber + 1, .S4 = i + Cont * LineNumber})
                 Next
                 Exit Do
             End If
         Loop
-
-
 
         'Delete double QUAD
         Dim Termine As Boolean = False
