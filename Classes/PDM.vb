@@ -1,7 +1,7 @@
 ﻿Imports System.Math
 Public Class PDM
     Inherits Base
-    Public E0, V, Fb0_Fc0, Kc, PsiDegre, Leq, Fck, Excent As Double
+    Public E0, V, Fb0_Fc0, Kc, PsiDegre, Leq, Fck, Excent, SigmaT0, SigmaC, SigmaT, Dc, Dt, Damaged As Double
     Public ac, bc, at, bt As Double
 
     Public Function ConcreteDamagedPlasticityYieldCondition(stress() As Double, SigmaI As Double, SigmaII As Double, SigmaIII As Double, Fb0_Fc0 As Double,
@@ -54,7 +54,7 @@ Public Class PDM
                             InElasticStrain As Double, SigmaTbarre As Double, SigmaMax As Double,
                             ByRef DerivativeQ() As Double) As Double
         'Explicit case
-        Dim a, b, Gamma, I1, J2, Theta, J3, SigmaI, SigmaII, SigmaIII, SigmaT0, SigmaC, SigmaT, Dc, Dt, Damaged As Double
+        Dim a, b, Gamma, I1, J2, Theta, J3, SigmaI, SigmaII, SigmaIII As Double
 
         ValeurPropre(Stress, SigmaI, SigmaII, SigmaIII, Theta)
         Dim DefPlasT, DefPlasC As Double
@@ -91,8 +91,8 @@ Public Class PDM
     Public Function PlasticStressImplicit(Strain() As Double, Stress() As Double, Delastic(,) As Double,
                                   StrainIncrement() As Double, InElasticStrain As Double, DInElasticStrain As Double, SigmaTbarre As Double,
                                   SigmaMax As Double, alfa As Double) As Double()
-        Dim a, b, Gamma, I1, J2, Theta, J3, SigmaI, SigmaII, SigmaIII, SigmaT0 As Double
-        Dim SigmaC, SigmaT, Dc, Dt, Damaged As Double
+        Dim a, b, Gamma, I1, J2, Theta, J3, SigmaI, SigmaII, SigmaIII As Double
+
         Dim Comprission As List(Of DoublePoint)
         Dim Tension As List(Of DoublePoint)
         SigmaT0 = 0.3016 * Fck ^ 0.6666667
@@ -120,7 +120,7 @@ Public Class PDM
                                   StrainIncrement() As Double, InElasticStrain As Double, DInElasticStrain As Double, SigmaTbarre As Double,
                                   Comprission As List(Of DoublePoint), Tension As List(Of DoublePoint)) As Double()
         ' For implicit Stress = Stress0 + DStress
-        Dim a, b, Gamma, I1, J2, Theta, J3, SigmaI, SigmaII, SigmaIII, SigmaT0, SigmaC, SigmaT, Dc, Dt, Damaged As Double
+        Dim a, b, Gamma, I1, J2, Theta, J3, SigmaI, SigmaII, SigmaIII As Double
         ValeurPropre(Stress, SigmaI, SigmaII, SigmaIII, Theta)
         InvariantsContraintes(Stress, I1,,, J2, J3)
         Dim DefPlasT, DefPlasC As Double
@@ -145,7 +145,7 @@ Public Class PDM
                                          OldStress() As Double, Optional ReturnCompleteStress As Boolean = False) As Double()
 
 
-        Dim a, b, Gamma, I1, J2, Theta, J3, SigmaI, SigmaII, SigmaIII, SigmaT0, SigmaC, SigmaT, Dc, Dt, Damaged As Double
+        Dim a, b, Gamma, I1, J2, Theta, J3, SigmaI, SigmaII, SigmaIII As Double
         Dim OldF As Double
         Dim NewF As Double
         Dim NewStress() As Double
